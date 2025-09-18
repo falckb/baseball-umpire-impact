@@ -1,15 +1,32 @@
-# Baseball Umpire Impact Analysis
+# Baseball Scouting: Undervalued Players Analysis
 
-This project analyzes baseball pitch-by-pitch data to identify which players would benefit most from automated ball/strike calling (robo-umps). By examining incorrect umpire calls and their context, we can quantify the impact of human umpiring errors on individual batters.
+This project identifies baseball players whose true talent is masked by their psychological reactions to incorrect umpire calls. By analyzing how players perform after experiencing bad calls, we can identify undervalued targets who would significantly improve with automated umpiring.
+
+## 🎯 Scouting Application
+
+**The Goal:** Find players whose season xwOBA would be significantly higher (e.g., +0.045 points) if they didn't experience the psychological impact of incorrect umpire calls.
+
+**Why This Matters for Scouts:**
+- Identify undervalued free agents and trade targets
+- Players negatively affected by bad calls may be available below their true talent level
+- With automated umpiring expanding, these players represent excellent value opportunities
+- Provides objective data on which players struggle psychologically with umpire inconsistency
 
 ## Overview
 
 The analysis examines:
-- Incorrect ball/strike calls for each qualified batter (300+ PA)
-- Count situations where incorrect calls occurred  
-- Leverage/importance of each incorrect call
-- Net impact of incorrect calls (calls against vs. calls for each batter)
-- Potential benefit each player would receive from perfect umpiring
+- **Baseline Performance:** How each batter performs in "clean" plate appearances (no incorrect calls against them)
+- **Post-Bad-Call Performance:** How the same batter performs in subsequent plate appearances after experiencing incorrect calls
+- **Psychological Impact:** The measurable difference in performance after bad call experiences
+- **xwOBA Projection:** Estimated seasonal improvement if player maintained baseline performance level
+
+## Key Insights
+
+Instead of leverage-weighted call analysis, this focuses on:
+1. **Emotional/Psychological Impact:** Some players get rattled by bad calls, others don't
+2. **Performance Suppression:** Quantifying how much bad calls hurt subsequent performance
+3. **Seasonal Projections:** "Player X's xwOBA would likely be ~0.045 points higher with robo-umps"
+4. **Scouting Value:** Identifying players whose market value doesn't reflect their robo-ump potential
 
 ## Project Structure
 
@@ -22,11 +39,11 @@ baseball-umpire-impact/
 │   └── config.yaml          # Configuration settings
 ├── src/
 │   ├── __init__.py
+│   ├── main_pipeline.py     # Complete workflow orchestration
 │   ├── data_collector.py    # Baseball Savant API interface
 │   ├── data_processor.py    # Data cleaning and structuring  
-│   ├── umpire_analyzer.py   # Core analysis engine
-│   ├── report_generator.py  # Interactive dashboard creation
-│   └── main_pipeline.py     # Complete workflow orchestration
+│   ├── umpire_analyzer.py   # Psychological impact analysis engine
+│   └── report_generator.py  # Interactive scouting dashboard creation
 ├── data/
 │   ├── raw/                 # Raw Statcast data
 │   └── processed/           # Cleaned and structured data
@@ -120,54 +137,56 @@ generator.generate_html_report()
 
 ## Methodology
 
-### Strike Zone Definition
-- **Horizontal:** ±0.83 feet from home plate center
-- **Vertical:** Dynamic based on each batter's `sz_top` and `sz_bot` values from Statcast
+### Psychological Impact Analysis
 
-### Leverage Scoring
-Each count situation is assigned a leverage weight based on its impact on the at-bat outcome:
+1. **Baseline Performance Calculation:**
+   - Identifies "clean" plate appearances with no incorrect calls against the batter
+   - Calculates baseline wOBA and xwOBA for each qualified player (50+ clean PAs)
 
-| Count | Leverage | Description |
-|-------|----------|-------------|
-| 3-2   | 1.6      | Full count - highest leverage |
-| 3-0   | 1.5      | Walk very likely |
-| 3-1   | 1.4      | Very batter-friendly |
-| 2-0   | 1.3      | Batter-friendly |
-| 2-1   | 1.2      | Slight batter advantage |
-| 2-2   | 1.1      | Full count approaching |
-| 0-0, 1-1 | 1.0   | Neutral |
-| 1-0   | 1.1      | Slight batter advantage |
-| 0-1   | 0.9      | Slight pitcher advantage |
-| 1-2   | 0.8      | Pitcher advantage |
-| 0-2   | 0.7      | Strong pitcher advantage |
+2. **Post-Bad-Call Performance:**
+   - Tracks performance in plate appearances following incorrect calls against the batter
+   - Analyzes next 10 PAs after each bad call experience
+   - Measures performance degradation due to psychological impact
 
-### Benefit Score Calculation
-**Potential Benefit Score** = (Weighted incorrect calls against batter - Weighted incorrect calls for batter) / Total PA × 100
+3. **Statistical Significance:**
+   - Requires minimum sample sizes (50 clean PAs, 20 post-bad-call PAs)
+   - Uses significance testing to identify meaningful performance differences
+   - Filters out random variation to focus on genuine psychological impact
 
-This represents the weighted impact of incorrect calls per 100 plate appearances.
+4. **Seasonal Projection:**
+   - **Key Formula:** `Projected xwOBA Improvement = (Baseline Performance - Post-Bad-Call Performance) × Percentage of PAs Affected`
+   - Estimates what player's season xwOBA would be without psychological suppression
+   - Provides actionable scouting metric: "Player X would gain +0.045 xwOBA with robo-umps"
+
+### Scouting Tiers
+- **Elite Targets:** +0.035+ xwOBA improvement potential
+- **High Impact:** +0.020 to +0.035 xwOBA improvement
+- **Medium Impact:** +0.010 to +0.020 xwOBA improvement  
+- **Low Impact:** <+0.010 xwOBA improvement
 
 ## Output Files
 
 After running the analysis, you'll find:
 
-1. **`reports/umpire_impact_dashboard.html`** - Interactive web dashboard with visualizations
-2. **`reports/top_beneficiaries.csv`** - Top 50 players who would benefit most  
-3. **`reports/umpire_impact_report.json`** - Complete analysis results in JSON format
+1. **`reports/scouting_dashboard.html`** - Interactive scouting dashboard with player valuations
+2. **`reports/undervalued_targets.csv`** - Complete analysis of all qualified players
+3. **`reports/psychological_impact_analysis.json`** - Detailed scouting report with tiers
 4. **`data/processed/statcast_YYYY_processed.csv`** - Cleaned plate appearance data
 5. **`data/raw/statcast_YYYY_raw.csv`** - Raw pitch-by-pitch data
 
-## Key Metrics Explained
+## Key Scouting Metrics
 
 ### Player-Level Metrics
-- **Potential Benefit Score:** Primary ranking metric - weighted incorrect calls against per 100 PA
-- **Net Calls Against:** Raw count of incorrect calls hurting vs. helping the batter
-- **High Leverage Calls Against:** Incorrect calls in high-impact situations (leverage ≥ 1.3)
-- **Incorrect Calls per PA:** Overall rate of incorrect calls experienced
+- **Projected xwOBA Improvement:** Primary scouting metric - estimated seasonal xwOBA gain with robo-umps
+- **Current vs Robo-Ump xwOBA:** Direct comparison showing hidden value (e.g., .342 → .387)
+- **Psychological Impact Score:** How much performance drops after bad calls
+- **Percentage of PAs Affected:** What portion of season was impacted by bad call psychology
 
-### Situational Analysis
-- **Count Analysis:** Breakdown of incorrect calls by ball-strike count
-- **Leverage Distribution:** How incorrect calls distribute across game situations
-- **Impact Patterns:** Which types of calls are most commonly missed
+### Market Application
+- **Undervalued Free Agents:** Players with high improvement potential trading below true talent
+- **Trade Targets:** Teams can acquire players whose struggles are umpire-related, not skill-related  
+- **Contract Negotiations:** Objective data on which players are systematically underperforming
+- **Future Planning:** With robo-umps expanding, these players represent excellent value
 
 ## Data Sources
 
@@ -216,11 +235,99 @@ For questions, suggestions, or collaboration opportunities, please open an issue
 
 ## Quick Example Results
 
-After running the analysis, you might see results like:
+After running the analysis, you might see scouting results like:
 
 ```
-Top 5 players who would benefit most from automated umpiring:
-  Player 12345: 2.34 benefit score (8 net calls against, 3 high-leverage)
+Top 5 undervalued targets (biggest xwOBA improvement potential):
+  Player 12345: +0.047 xwOBA (0.342 → 0.389) - Elite Target
+  Player 67890: +0.033 xwOBA (0.315 → 0.348) - High Impact  
+  Player 11111: +0.028 xwOBA (0.298 → 0.326) - High Impact
+  Player 22222: +0.021 xwOBA (0.331 → 0.352) - High Impact
+  Player 33333: +0.018 xwOBA (0.307 → 0.325) - Medium Impact
+```
+
+**Scouting Translation:** Player 12345 is significantly undervalued - their season performance is suppressed by ~47 points of xwOBA due to psychological reactions to bad umpire calls. With automated umpiring expanding, this player represents excellent value.
+
+Open `reports/scouting_dashboard.html` in your browser to explore the full interactive scouting analysis!
+
+## File Locations Summary
+
+Here's exactly where each code file belongs in your project structure:
+
+### Root Directory Files
+- `README.md` - Project documentation (you're reading it!)
+- `requirements.txt` - Python package dependencies
+- `.gitignore` - Git ignore patterns
+- `setup.py` - Project setup and installation script
+- `test_installation.py` - Installation verification script
+
+### Configuration Files (`config/` directory)
+- `config/config.yaml` - Main configuration settings
+- `config/local_config_template.yaml` - Template for local overrides
+
+### Python Source Code (`src/` directory)
+- `src/__init__.py` - Makes src a Python package
+- `src/main_pipeline.py` - **Main script to run everything**
+- `src/data_collector.py` - Baseball Savant API data collection
+- `src/data_processor.py` - Data cleaning and structuring
+- `src/umpire_analyzer.py` - **Core psychological impact analysis**
+- `src/report_generator.py` - Interactive dashboard generation
+
+### Data Files (created automatically)
+- `data/raw/statcast_YYYY_raw.csv` - Raw API data
+- `data/processed/statcast_YYYY_processed.csv` - Cleaned data
+
+### Output Files (created automatically)  
+- `reports/scouting_dashboard.html` - **Main scouting dashboard**
+- `reports/undervalued_targets.csv` - All player analysis results
+- `reports/psychological_impact_analysis.json` - Detailed scouting report
+
+### Empty Directories (created by setup)
+- `notebooks/` - For Jupyter notebook exploration
+- `tests/` - For unit tests (future)
+- `logs/` - Log files
+
+## Implementation Steps
+
+1. **Set up your GitHub repository and clone it locally**
+
+2. **Copy all the code files to their correct locations:**
+   ```bash
+   # After cloning your repo, create this exact structure:
+   your-repo/
+   ├── src/main_pipeline.py          # ← The orchestration script
+   ├── src/data_collector.py         # ← API interface
+   ├── src/data_processor.py         # ← Data cleaning
+   ├── src/umpire_analyzer.py        # ← Psychological analysis (MODIFIED)
+   ├── src/report_generator.py       # ← Scouting dashboard (MODIFIED)
+   ├── config/config.yaml            # ← Settings
+   ├── requirements.txt              # ← Dependencies
+   ├── setup.py                      # ← Installation script
+   └── README.md                     # ← This documentation
+   ```
+
+3. **Run the setup script:**
+   ```bash
+   python setup.py
+   ```
+
+4. **Test your installation:**
+   ```bash
+   python test_installation.py
+   ```
+
+5. **Run the full scouting analysis:**
+   ```bash
+   python src/main_pipeline.py --full-pipeline --year 2024
+   ```
+
+6. **View your scouting results:**
+   ```bash
+   # Open this file in your browser:
+   reports/scouting_dashboard.html
+   ```
+
+The key difference from our original design is that we've refocused the analysis engine (`umpire_analyzer.py`) and dashboard (`report_generator.py`) on **psychological impact and scouting value** rather than leverage-weighted umpire accuracy.2.34 benefit score (8 net calls against, 3 high-leverage)
   Player 67890: 2.12 benefit score (6 net calls against, 4 high-leverage)
   Player 11111: 1.98 benefit score (7 net calls against, 2 high-leverage)
   ...
