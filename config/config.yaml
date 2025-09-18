@@ -1,0 +1,74 @@
+# Baseball Umpire Impact Analysis Configuration
+
+# Data Collection Settings
+data_collection:
+  base_url: "https://baseballsavant.mlb.com/statcast_search/csv"
+  chunk_days: 14  # Days per API call to manage rate limits
+  request_delay: 1  # Seconds between API calls
+  retry_attempts: 3
+
+# Data Processing Settings
+data_processing:
+  min_plate_appearances: 300  # Minimum PA to qualify for analysis
+  
+  # Strike zone boundaries (in feet from home plate center)
+  strike_zone:
+    left: -0.83
+    right: 0.83
+    # top and bottom are dynamic based on batter sz_top and sz_bot
+
+# Analysis Settings
+analysis:
+  # Count leverage weights (higher = more impactful)
+  count_leverage:
+    "0-0": 1.0
+    "1-0": 1.1
+    "2-0": 1.3
+    "3-0": 1.5
+    "0-1": 0.9
+    "1-1": 1.0
+    "2-1": 1.2
+    "3-1": 1.4
+    "0-2": 0.7
+    "1-2": 0.8
+    "2-2": 1.1
+    "3-2": 1.6
+  
+  # High leverage threshold
+  high_leverage_threshold: 1.3
+  
+  # wOBA weights (approximate 2024 values)
+  woba_weights:
+    walk: 0.69
+    hit_by_pitch: 0.72
+    single: 0.89
+    double: 1.27
+    triple: 1.62
+    home_run: 2.10
+
+# Reporting Settings
+reporting:
+  top_players_count: 50  # Number of top beneficiaries to highlight
+  chart_colors:
+    primary: "#1f4e79"
+    secondary: "#e8f4f8"
+    accent: "#ff6b6b"
+  
+  # Dashboard layout options
+  dashboard:
+    show_distributions: true
+    show_count_analysis: true
+    include_methodology: true
+
+# File paths
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed" 
+  reports: "reports"
+  logs: "logs"
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "umpire_analysis.log"

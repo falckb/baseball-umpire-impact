@@ -1,0 +1,47 @@
+# Core data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# API and web requests
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Baseball data (optional - for additional features)
+pybaseball>=2.2.0
+
+# Date handling
+python-dateutil>=2.8.0
+
+# Configuration management
+pyyaml>=6.0
+
+# Interactive visualizations - REQUIRED
+plotly>=5.15.0
+
+# Additional plotting (for static charts if needed)
+seaborn>=0.12.0
+matplotlib>=3.7.0
+
+# Scientific computing
+scipy>=1.10.0
+
+# Jupyter notebooks for exploration
+jupyter>=1.0.0
+ipython>=8.0.0
+
+# Development and testing (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Code quality (optional)
+black>=23.0.0
+flake8>=6.0.0
+
+# Progress bars for long operations
+tqdm>=4.65.0
+
+# Better error handling and logging
+rich>=13.0.0
+
+# Data validation (optional but recommended)
+pandera>=0.17.0
