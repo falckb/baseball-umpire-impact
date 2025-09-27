@@ -29,7 +29,7 @@ DESIRED_COLS: List[str] = [
     "game_pk", "plate_x", "plate_z",
     "estimated_woba_using_speedangle", "estimated_ba_using_speedangle",
     "launch_speed_angle", "pitch_number", "at_bat_number",
-    "sz_top", "sz_bot",
+    "sz_top", "sz_bot", "bat_speed", "swing_length"
 ]
 
 # -----------------------------

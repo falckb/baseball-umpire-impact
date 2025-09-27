@@ -20,34 +20,99 @@ def main() -> None:
     ensure_data_exists()
     con = ddb.connect(DB_PATH)
 
-    # Macro for configurable PA threshold (change 300 → 200, etc.)
+    # --- Configurable PA threshold (change here to 200 later if desired) ---
     con.execute("CREATE OR REPLACE MACRO PA_THRESHOLD() AS 300;")
 
-    # Raw pitches view over all Parquet files
+    # --- Zone geometry macros ---
+    # Horizontal half-plate width per your spec, in feet
+    con.execute("CREATE OR REPLACE MACRO PLATE_HALF_FT() AS 0.71;")
+    # Baseball radius: 1.45 inches => feet
+    con.execute("CREATE OR REPLACE MACRO BALL_RADIUS_FT() AS 1.45 / 12.0;")
+
+    # TRUE_STRIKE(px, pz, sz_top, sz_bot) returns:
+    #   - TRUE if any part of the ball clips the zone
+    #   - FALSE if the ball fully misses the expanded zone
+    #   - NULL if any inputs are NULL (unknown)
+    con.execute("""
+    CREATE OR REPLACE MACRO TRUE_STRIKE(px, pz, sz_top, sz_bot) AS
+    CASE
+      WHEN px IS NULL OR pz IS NULL OR sz_top IS NULL OR sz_bot IS NULL THEN NULL
+      ELSE
+        CASE
+          WHEN abs(px) <= (PLATE_HALF_FT() + BALL_RADIUS_FT())
+           AND pz BETWEEN LEAST(sz_bot, sz_top) - BALL_RADIUS_FT()
+                      AND GREATEST(sz_bot, sz_top) + BALL_RADIUS_FT()
+          THEN TRUE ELSE FALSE
+        END
+    END;
+    """)
+
+    # --- Base view over Parquet ---
     con.execute(f"""
         CREATE OR REPLACE VIEW pitches AS
         SELECT * FROM read_parquet('{PARQUET_GLOB}');
     """)
 
-    # One row per plate appearance = last pitch of each PA
+    # --- Augment with geometric truth + comparison vs. recorded 'type' ---
+    # NOTE:
+    #  - We null out the comparison on any pitch with bat_speed present (swings),
+    #    on non-called results (type NOT IN ('B','S')), or when truth is unknown.
+    #  - Labels:
+    #       MATCH        -> geometric truth agrees with type
+    #       MISS_STRIKE  -> called ball but geometric TRUE_STRIKE
+    #       MISS_BALL    -> called strike but geometric not strike
+    con.execute("""
+        CREATE OR REPLACE VIEW pitches_with_truth AS
+        SELECT
+          p.*,
+
+          TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) AS true_strike,
+          CASE
+            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL
+            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) THEN FALSE
+            ELSE TRUE
+          END AS true_ball,
+          CASE
+            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL
+            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) THEN 'TRUE_STRIKE'
+            ELSE 'TRUE_BALL'
+          END AS true_zone_label,
+
+          CASE
+            WHEN p.bat_speed IS NOT NULL THEN NULL            -- exclude swings
+            WHEN p.type NOT IN ('B','S') THEN NULL            -- only compare called ball/strike
+            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL  -- unknown geometry
+
+            -- Agreements
+            WHEN p.type = 'S' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = TRUE  THEN 'MATCH'
+            WHEN p.type = 'B' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = FALSE THEN 'MATCH'
+
+            -- Disagreements
+            WHEN p.type = 'S' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = FALSE THEN 'MISS_BALL'
+            WHEN p.type = 'B' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = TRUE  THEN 'MISS_STRIKE'
+          END AS truth_vs_type
+        FROM pitches p;
+    """)
+
+    # --- One row per plate appearance = last pitch of each PA ---
     con.execute("""
         CREATE OR REPLACE VIEW plate_appearances AS
         WITH last_pitch AS (
             SELECT game_year, batter, game_pk, at_bat_number, MAX(pitch_number) AS last_pitch
-            FROM pitches
+            FROM pitches_with_truth
             GROUP BY 1,2,3,4
         )
-        SELECT p.*
-        FROM pitches p
+        SELECT pwt.*
+        FROM pitches_with_truth pwt
         JOIN last_pitch lp
-          ON p.game_year=lp.game_year
-         AND p.batter=lp.batter
-         AND p.game_pk=lp.game_pk
-         AND p.at_bat_number=lp.at_bat_number
-         AND p.pitch_number=lp.last_pitch;
+          ON pwt.game_year=lp.game_year
+         AND pwt.batter=lp.batter
+         AND pwt.game_pk=lp.game_pk
+         AND pwt.at_bat_number=lp.at_bat_number
+         AND pwt.pitch_number=lp.last_pitch;
     """)
 
-    # Eligible batter-year pairs by PA threshold (uses the macro)
+    # --- Eligible batter-year pairs by PA threshold ---
     con.execute("""
         CREATE OR REPLACE VIEW eligible_batter_year AS
         SELECT game_year, batter, COUNT(*) AS pa_count
@@ -56,13 +121,13 @@ def main() -> None:
         HAVING COUNT(*) >= PA_THRESHOLD();
     """)
 
-    # Filtered pitches for qualified batters (join back to pitch level)
+    # --- Qualified pitches (inherits the new columns) ---
     con.execute("""
         CREATE OR REPLACE VIEW pitches_qualified AS
-        SELECT p.*
-        FROM pitches p
+        SELECT pwt.*
+        FROM pitches_with_truth pwt
         JOIN eligible_batter_year e
-          ON p.game_year = e.game_year AND p.batter = e.batter;
+          ON pwt.game_year = e.game_year AND pwt.batter = e.batter;
     """)
 
     # Quick sanity prints
