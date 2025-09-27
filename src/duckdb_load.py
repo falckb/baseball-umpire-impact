@@ -1,9 +1,3 @@
-"""
-Load Parquet files into DuckDB, define a simple view, and print the first two rows.
-
-Requires: duckdb, pyarrow
-pip install duckdb pyarrow
-"""
 from __future__ import annotations
 
 import os
