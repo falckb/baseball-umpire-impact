@@ -64,24 +64,28 @@ def main() -> None:
     con.execute("""
         CREATE OR REPLACE VIEW pitches_with_truth AS
         SELECT
-          p.*,
+        p.*,
 
-          TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) AS true_strike,
-          CASE
+        -- Geometric truth flags
+        TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) AS true_strike,
+        CASE
             WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL
             WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) THEN FALSE
             ELSE TRUE
-          END AS true_ball,
-          CASE
+        END AS true_ball,
+        CASE
             WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL
             WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) THEN 'TRUE_STRIKE'
             ELSE 'TRUE_BALL'
-          END AS true_zone_label,
+        END AS true_zone_label,
 
-          CASE
-            WHEN p.bat_speed IS NOT NULL THEN NULL            -- exclude swings
-            WHEN p.type NOT IN ('B','S') THEN NULL            -- only compare called ball/strike
-            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL  -- unknown geometry
+        -- Comparison vs recorded 'type' — evaluate ONLY on called pitches B/S.
+        -- NULL when:
+        --   - type NOT IN ('B','S')  (i.e., swings / contact / other)
+        --   - geometric truth unknown (missing coords/zone)
+        CASE
+            WHEN p.type NOT IN ('B','S') THEN NULL
+            WHEN TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) IS NULL THEN NULL
 
             -- Agreements
             WHEN p.type = 'S' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = TRUE  THEN 'MATCH'
@@ -90,7 +94,7 @@ def main() -> None:
             -- Disagreements
             WHEN p.type = 'S' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = FALSE THEN 'MISS_BALL'
             WHEN p.type = 'B' AND TRUE_STRIKE(p.plate_x, p.plate_z, p.sz_top, p.sz_bot) = TRUE  THEN 'MISS_STRIKE'
-          END AS truth_vs_type
+        END AS truth_vs_type
         FROM pitches p;
     """)
 
