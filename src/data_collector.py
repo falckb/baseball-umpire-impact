@@ -127,8 +127,8 @@ def fetch_month_robust(year: int, month: int, game_type: str = "R",
 # -----------------------------
 
 def fetch_statcast_regular(
-    start_year: int = 2015,
-    end_year: int = 2024,
+    start_year: int = 2018,
+    end_year: int = 2025,
     columns: Optional[Sequence[str]] = None,
     game_type: str = "R",
     use_cache: bool = True,
@@ -196,8 +196,8 @@ def fetch_statcast_regular(
 # -----------------------------
 
 def build_parquet_years(out_dir: str,
-                        start_year: int = 2015,
-                        end_year: int = 2024,
+                        start_year: int = 2018,
+                        end_year: int = 2025,
                         use_cache: bool = True,
                         verbose: bool = True) -> None:
     if use_cache:
@@ -235,4 +235,4 @@ if __name__ == "__main__":
     #print(df.head(2))
 
     # Example 2: Or build Parquet files you can query later (recommended for scale)
-    build_parquet_years(out_dir="data/parquet/statcast_regular", start_year=2015, end_year=2024)
+    build_parquet_years(out_dir="data/parquet/statcast_regular", start_year=2018, end_year=2025)
